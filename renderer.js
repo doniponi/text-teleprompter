@@ -2,8 +2,10 @@ const appEl = document.getElementById('app');
 const contentEl = document.getElementById('content');
 const filenameEl = document.getElementById('filename');
 const btnOpen = document.getElementById('btn-open');
+const btnReload = document.getElementById('btn-reload');
 const btnPlay = document.getElementById('btn-play');
 const btnClickThrough = document.getElementById('btn-clickthrough');
+const btnAutocolor = document.getElementById('btn-autocolor');
 const btnHide = document.getElementById('btn-hide');
 const btnMinimize = document.getElementById('btn-minimize');
 const btnClose = document.getElementById('btn-close');
@@ -20,6 +22,7 @@ let charsPerMinute = parseInt(speedInput.value, 10);
 let playing = false;
 let clickThrough = false;
 let lastTs = null;
+let currentFilePath = null;
 
 // 之前按"一行能放多少字"理论估算 px/秒，没算标题、段落间距这些不含文字的
 // 空白高度，实际要滚的距离比理论值大，看起来就比设定的"字/分钟"慢。
@@ -43,16 +46,46 @@ function currentPxPerSecond() {
   return pxPerChar * (charsPerMinute / 60);
 }
 
-function loadContent({ content, filePath }) {
-  contentEl.innerHTML = marked.parse(content);
+function escapeHtml(s) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function renderByType(type, content) {
+  if (type === 'markdown') return marked.parse(content);
+  if (type === 'html') return content;
+  // 纯文本：不当 Markdown 解析，避免 txt 里的 #、- 等符号被误当格式符号；
+  // 按段落分行显示，保留用户原始的换行位置。
+  return content
+    .split(/\r?\n/)
+    .map((line) => `<p>${escapeHtml(line) || '&nbsp;'}</p>`)
+    .join('');
+}
+
+function loadContent({ type, content, filePath }) {
+  contentEl.innerHTML = renderByType(type, content);
   contentEl.scrollTop = 0;
+  currentFilePath = filePath || null;
   filenameEl.textContent = filePath ? filePath.split(/[\\/]/).pop() : '未命名';
   filenameEl.title = filePath || '';
+  btnReload.disabled = !currentFilePath;
   recalibrateSpeed();
+  lastAnchor = captureScrollAnchor();
+}
+
+async function reloadCurrentFile() {
+  if (!currentFilePath) return;
+  const res = await window.api.loadFileByPath(currentFilePath);
+  if (res) loadContent(res);
 }
 
 // 记录当前视口顶部对应的是哪个段落、以及滚动到了该段落的百分之几，
-// 这样字号变化导致重新排版后，能把同一段落的相同位置滚回视口顶部，而不是跳到别处。
+// 这样字号变化 / 窗口缩放导致重新排版后，能把同一段落的相同位置滚回视口顶部，
+// 而不是跳到别处。lastAnchor 在每次滚动后持续更新，保证它总是反映"缩放前"的位置。
+let lastAnchor = null;
+
 function captureScrollAnchor() {
   const children = contentEl.children;
   for (let i = 0; i < children.length; i++) {
@@ -72,18 +105,59 @@ function restoreScrollAnchor(anchor) {
   contentEl.scrollTop = el.offsetTop + anchor.fraction * el.offsetHeight;
 }
 
+contentEl.addEventListener('scroll', () => {
+  lastAnchor = captureScrollAnchor();
+});
+
+// 窗口拖拽缩放时浏览器会立刻重新排版，resize 事件触发时新布局已经生效，
+// scrollTop 数值没变但对应的内容已经错位，所以用缩放前记下来的 lastAnchor
+// （而不是当场重新计算）在新布局里复原同一段落、同一位置。
+let resizeScheduled = false;
+window.addEventListener('resize', () => {
+  if (resizeScheduled) return;
+  resizeScheduled = true;
+  requestAnimationFrame(() => {
+    resizeScheduled = false;
+    restoreScrollAnchor(lastAnchor);
+    recalibrateSpeed();
+  });
+});
+
 function setFontSize(px) {
   const anchor = captureScrollAnchor();
   contentEl.style.fontSize = px + 'px';
   restoreScrollAnchor(anchor);
+  lastAnchor = anchor;
   recalibrateSpeed();
 }
 
+// 自动识别背景色之后，文字颜色 / 描边 / 叠加底色的深浅方向都会跟着变，
+// 记下当前是"浅色底"还是"深色底"，这样透明度滑块单独调整时也能延续这个方向。
+let overlayIsLight = false;
+
 function setOpacity(percent) {
   const alpha = percent / 100;
-  document.getElementById('titlebar').style.background = `rgba(20,20,20,${0.3 + alpha * 0.5})`;
-  document.getElementById('controls').style.background = `rgba(20,20,20,${0.2 + alpha * 0.5})`;
-  contentEl.style.background = `rgba(0,0,0,${alpha})`;
+  const base = overlayIsLight ? '255,255,255' : '20,20,20';
+  document.getElementById('titlebar').style.background = `rgba(${base},${0.3 + alpha * 0.5})`;
+  document.getElementById('controls').style.background = `rgba(${base},${0.2 + alpha * 0.5})`;
+  contentEl.style.background = `rgba(${overlayIsLight ? '255,255,255' : '0,0,0'},${alpha})`;
+}
+
+async function autoDetectBackground() {
+  btnAutocolor.disabled = true;
+  try {
+    const rgb = await window.api.detectBackground();
+    if (!rgb) return;
+    const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+    overlayIsLight = luminance > 0.55;
+    const textColor = overlayIsLight ? '#1a1a1a' : '#ffffff';
+    const shadow = overlayIsLight ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)';
+    contentEl.style.color = textColor;
+    contentEl.style.textShadow = `0 1px 4px ${shadow}, 0 0 2px ${shadow}`;
+    setOpacity(parseInt(opacityInput.value, 10));
+  } finally {
+    btnAutocolor.disabled = false;
+  }
 }
 
 // 每帧要滚动的距离常常不到 1px（比如 200 字/分对应每秒才几像素）。
@@ -144,9 +218,13 @@ btnOpen.addEventListener('click', async () => {
   if (res) loadContent(res);
 });
 
+btnReload.addEventListener('click', reloadCurrentFile);
+
 btnPlay.addEventListener('click', () => setPlaying(!playing));
 
 btnClickThrough.addEventListener('click', () => setClickThrough(!clickThrough));
+
+btnAutocolor.addEventListener('click', autoDetectBackground);
 
 btnHide.addEventListener('click', () => {
   appEl.classList.toggle('controls-hidden');
@@ -196,12 +274,12 @@ appEl.addEventListener('drop', async (e) => {
   if (!file) return;
   const filePath = window.api.getPathForFile(file);
   if (!filePath) return;
-  const res = await window.api.readDroppedFile(filePath);
+  const res = await window.api.loadFileByPath(filePath);
   if (res) loadContent(res);
 });
 
 // --- IPC from main (global shortcuts, work even without window focus) ---
-window.api.onLoadMarkdown((data) => loadContent(data));
+window.api.onLoadFile((data) => loadContent(data));
 window.api.onToggleClickThrough((forceValue) =>
   setClickThrough(forceValue !== undefined ? forceValue : !clickThrough)
 );
@@ -215,9 +293,11 @@ window.api.onRequestOpenFile(async () => {
   const res = await window.api.openFileDialog();
   if (res) loadContent(res);
 });
+window.api.onRequestReloadFile(() => reloadCurrentFile());
 window.api.onToggleControls(() => appEl.classList.toggle('controls-hidden'));
 
 // init
+btnReload.disabled = true;
 fontsizeVal.textContent = fontsizeInput.value;
 setFontSize(parseInt(fontsizeInput.value, 10));
 setOpacity(parseInt(opacityInput.value, 10));
