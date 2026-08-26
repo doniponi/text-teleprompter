@@ -63,7 +63,7 @@ function createWindow() {
 function createTray() {
   const icon = nativeImage.createFromBuffer(buildTrayIconPng(32, '#D97757', 'letterTArrow'));
   tray = new Tray(icon);
-  tray.setToolTip('MD 提词器');
+  tray.setToolTip('文本提词器');
 
   const menu = Menu.buildFromTemplate([
     {

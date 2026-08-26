@@ -199,7 +199,7 @@ function setClickThrough(v) {
   osIgnoring = v;
   window.api.setClickThrough(v);
   btnClickThrough.classList.toggle('active', v);
-  document.title = v ? 'MD 提词器 (穿透中，工具栏可点 / Ctrl+Alt+T 恢复)' : 'MD 提词器';
+  document.title = v ? '文本提词器 (穿透中，工具栏可点 / Ctrl+Alt+T 恢复)' : '文本提词器';
 }
 
 document.addEventListener('mousemove', (e) => {

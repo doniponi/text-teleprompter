@@ -1,7 +1,7 @@
 {
-  "name": "md-teleprompter",
-  "version": "1.1.0",
-  "description": "透明悬浮 Markdown 提词器",
+  "name": "text-teleprompter",
+  "version": "1.1.1",
+  "description": "透明悬浮文本提词器（支持 Markdown / txt / docx）",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -16,8 +16,8 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "com.mdteleprompter.app",
-    "productName": "MD提词器",
+    "appId": "com.textteleprompter.app",
+    "productName": "文本提词器",
     "asar": true,
     "files": [
       "main.js",
@@ -39,7 +39,7 @@
       ]
     },
     "portable": {
-      "artifactName": "MD提词器-${version}.exe"
+      "artifactName": "文本提词器-${version}.exe"
     }
   }
 }
