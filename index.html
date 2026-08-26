@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>MD 提词器</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="edge-nw">
+
+    <div id="titlebar">
+      <span id="filename">未打开文件</span>
+      <div id="titlebar-actions">
+        <button id="btn-open" title="打开文件 (Ctrl+Alt+O)">📂</button>
+        <button id="btn-play" title="播放/暂停 (Ctrl+Alt+Space)">▶</button>
+        <button id="btn-clickthrough" title="鼠标穿透 (Ctrl+Alt+T)">🖱</button>
+        <button id="btn-hide" title="隐藏工具栏 (Ctrl+Alt+H)">▁</button>
+        <button id="btn-minimize" title="最小化">—</button>
+        <button id="btn-close" title="关闭">✕</button>
+      </div>
+    </div>
+
+    <div id="controls">
+      <label>语速(字/分)
+        <input type="range" id="speed" min="50" max="600" step="10" value="200" />
+        <span id="speed-val">200</span>
+      </label>
+      <label>字号
+        <button id="fontsize-minus" class="stepper-btn" type="button">－</button>
+        <input type="range" id="fontsize" min="8" max="72" step="1" value="14" />
+        <button id="fontsize-plus" class="stepper-btn" type="button">＋</button>
+        <span id="fontsize-val">14</span>
+      </label>
+      <label>透明度
+        <input type="range" id="opacity" min="0" max="90" value="35" />
+      </label>
+      <label>镜像
+        <input type="checkbox" id="mirror" />
+      </label>
+    </div>
+
+    <div id="content-wrap">
+      <div id="content" class="md-body">
+        <p class="placeholder">拖入 .md 文件，或点击左上角 📂 打开<br/>
+        快捷键：Ctrl+Alt+Space 播放/暂停 · Ctrl+Alt+↑/↓ 调速 · Ctrl+Alt+T 鼠标穿透 · Ctrl+Alt+H 隐藏工具栏 · Ctrl+Alt+O 打开文件</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="node_modules/marked/marked.min.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

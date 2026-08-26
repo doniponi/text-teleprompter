@@ -1,0 +1,15 @@
+{
+  "name": "md-teleprompter",
+  "version": "1.0.0",
+  "description": "透明悬浮 Markdown 提词器",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "marked": "^12.0.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}
