@@ -137,9 +137,10 @@ let overlayIsLight = false;
 
 function setOpacity(percent) {
   const alpha = percent / 100;
-  const base = overlayIsLight ? '255,255,255' : '20,20,20';
-  document.getElementById('titlebar').style.background = `rgba(${base},${0.3 + alpha * 0.5})`;
-  document.getElementById('controls').style.background = `rgba(${base},${0.2 + alpha * 0.5})`;
+  // 工具栏底色固定用深色，不跟着自动配色切换——工具栏上的图标/文字本来就是白色，
+  // 深色底才能保证任何时候都认得出、点得到，不会因为跟内容区一起变浅色而"隐形"。
+  document.getElementById('titlebar').style.background = `rgba(20,20,20,${0.3 + alpha * 0.5})`;
+  document.getElementById('controls').style.background = `rgba(20,20,20,${0.2 + alpha * 0.5})`;
   contentEl.style.background = `rgba(${overlayIsLight ? '255,255,255' : '0,0,0'},${alpha})`;
 }
 
@@ -158,6 +159,18 @@ async function autoDetectBackground() {
   } finally {
     btnAutocolor.disabled = false;
   }
+}
+
+const DEFAULT_OPACITY = 35;
+
+// 自动配色把文字和蒙层都调得跟背景很接近时，工具栏虽然固定用深色底不会跟着隐形，
+// 但内容区可能已经看不清了。托盘菜单 / 全局快捷键 Ctrl+Alt+C 都能触发这个复原。
+function resetAppearance() {
+  overlayIsLight = false;
+  contentEl.style.color = '';
+  contentEl.style.textShadow = '';
+  opacityInput.value = DEFAULT_OPACITY;
+  setOpacity(DEFAULT_OPACITY);
 }
 
 // 每帧要滚动的距离常常不到 1px（比如 200 字/分对应每秒才几像素）。
@@ -295,6 +308,7 @@ window.api.onRequestOpenFile(async () => {
 });
 window.api.onRequestReloadFile(() => reloadCurrentFile());
 window.api.onToggleControls(() => appEl.classList.toggle('controls-hidden'));
+window.api.onResetAppearance(() => resetAppearance());
 
 // init
 btnReload.disabled = true;

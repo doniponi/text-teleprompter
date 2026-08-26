@@ -15,4 +15,5 @@ contextBridge.exposeInMainWorld('api', {
   onRequestOpenFile: (cb) => ipcRenderer.on('request-open-file', cb),
   onRequestReloadFile: (cb) => ipcRenderer.on('request-reload-file', cb),
   onToggleControls: (cb) => ipcRenderer.on('toggle-controls', cb),
+  onResetAppearance: (cb) => ipcRenderer.on('reset-appearance', cb),
 });

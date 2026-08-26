@@ -94,6 +94,10 @@ function createTray() {
       label: '恢复鼠标点击（关闭穿透）',
       click: () => win.webContents.send('toggle-click-through', false),
     },
+    {
+      label: '恢复默认外观（字色/透明度）',
+      click: () => win.webContents.send('reset-appearance'),
+    },
     { type: 'separator' },
     {
       label: '重置窗口位置',
@@ -136,6 +140,9 @@ app.whenReady().then(() => {
     win.restore();
     win.show();
   });
+  globalShortcut.register('Control+Alt+C', () => {
+    win.webContents.send('reset-appearance');
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -151,13 +158,26 @@ app.on('window-all-closed', () => {
 });
 
 ipcMain.handle('open-file-dialog', async () => {
-  const result = await dialog.showOpenDialog(win, {
-    properties: ['openFile'],
-    filters: [
-      { name: '支持的文档', extensions: ['md', 'markdown', 'txt', 'docx'] },
-      { name: '所有文件', extensions: ['*'] },
-    ],
-  });
+  // 两个坑都在这：
+  // 1) win 是 focusable:false，原生"模态"对话框需要依附一个能被激活的父窗口，
+  //    传 win 当 parent 会导致 Windows 建立不起模态关系，对话框创建阶段直接卡死，
+  //    连窗口都不会出现——所以不传 parent，做成独立的非模态对话框。
+  // 2) win 常年 alwaysOnTop('screen-saver')，这是 Windows 里最高的置顶档位，
+  //    普通对话框窗口即使正常弹出也会被压在它下面、看不见也点不到，
+  //    所以弹窗前先临时取消置顶，关闭后再恢复。
+  win.setAlwaysOnTop(false);
+  let result;
+  try {
+    result = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [
+        { name: '支持的文档', extensions: ['md', 'markdown', 'txt', 'docx'] },
+        { name: '所有文件', extensions: ['*'] },
+      ],
+    });
+  } finally {
+    win.setAlwaysOnTop(true, 'screen-saver');
+  }
   if (result.canceled || result.filePaths.length === 0) return null;
   return loadFileByPath(result.filePaths[0]);
 });
