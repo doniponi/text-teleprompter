@@ -49,6 +49,14 @@ function createTray() {
 
   const menu = Menu.buildFromTemplate([
     {
+      label: '显示窗口（从最小化恢复）',
+      click: () => {
+        win.restore();
+        win.show();
+      },
+    },
+    { type: 'separator' },
+    {
       label: '显示/隐藏工具栏',
       click: () => win.webContents.send('toggle-controls'),
     },
@@ -101,6 +109,10 @@ app.whenReady().then(() => {
   });
   globalShortcut.register('Control+Alt+H', () => {
     win.webContents.send('toggle-controls');
+  });
+  globalShortcut.register('Control+Alt+R', () => {
+    win.restore();
+    win.show();
   });
 
   app.on('activate', () => {
