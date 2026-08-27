@@ -28,9 +28,15 @@ If you want a document to scroll quietly in front of you without getting in the 
 
 ## Download & run
 
-### Download the prebuilt exe (recommended, no dev setup needed)
+### Download a prebuilt build (recommended, no dev setup needed)
 
-Grab the latest `文本提词器-x.x.x.exe` from [Releases](https://github.com/doniponi/text-teleprompter/releases) and double-click it. No installation, no Node.js required.
+Grab the latest build from [Releases](https://github.com/doniponi/text-teleprompter/releases):
+
+- **Windows**: `文本提词器-x.x.x.exe` — double-click it, no installation, no Node.js required
+- **macOS (Apple Silicon / M-series)**: `文本提词器-x.x.x-arm64-mac.zip`
+- **macOS (Intel)**: `文本提词器-x.x.x-x64-mac.zip`
+
+The macOS build isn't signed with a paid Apple Developer certificate, so on first launch Gatekeeper will say it "cannot verify the developer" — right-click the `.app` and choose Open (instead of double-clicking) to bypass that once. The macOS build has only been verified via automated CI (launch, click, scroll all checked programmatically) — nobody has run it hands-on on a real Mac yet, so please report anything odd.
 
 ### Run from source / development
 

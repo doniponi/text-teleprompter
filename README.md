@@ -30,7 +30,13 @@
 
 ### 直接下载（推荐，不用装开发环境）
 
-前往 [Releases](https://github.com/doniponi/text-teleprompter/releases) 页面下载最新的 `文本提词器-x.x.x.exe`，双击即可运行，免安装、不需要 Node.js。
+前往 [Releases](https://github.com/doniponi/text-teleprompter/releases) 页面下载：
+
+- **Windows**：`文本提词器-x.x.x.exe`，双击即可运行，免安装、不需要 Node.js
+- **macOS（Apple Silicon / M 系列芯片）**：`文本提词器-x.x.x-arm64-mac.zip`
+- **macOS（Intel 芯片）**：`文本提词器-x.x.x-x64-mac.zip`
+
+macOS 版解压后是 `.app`，因为没有付费的 Apple 开发者证书签名，第一次打开时系统会提示"无法验证开发者"——右键点 app 选"打开"（而不是双击）即可绕过这个提示。macOS 版目前只在 CI 里做过启动/点击/滚动的自动化验证，还没有人在真机上完整用过，如果遇到问题欢迎反馈。
 
 ### 从源码运行 / 开发
 
