@@ -1,0 +1,73 @@
+name: Build and smoke-test on macOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "main.js"
+      - "preload.js"
+      - "renderer.js"
+      - "index.html"
+      - "styles.css"
+      - "tray-icon.js"
+      - "package.json"
+      - ".github/workflows/build-mac.yml"
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS app
+        run: npm run build:mac
+
+      - name: Smoke-test launch (does it start without crashing)
+        run: |
+          set -x
+          APP_PATH=$(find dist/mac* -maxdepth 1 -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found in dist/"
+            find dist -maxdepth 2
+            exit 1
+          fi
+          echo "App bundle: $APP_PATH"
+          APP_NAME=$(basename "$APP_PATH" .app)
+          BIN="$APP_PATH/Contents/MacOS/$APP_NAME"
+          ls -la "$APP_PATH/Contents/MacOS/"
+
+          "$BIN" --disable-gpu --no-sandbox > launch.log 2>&1 &
+          PID=$!
+          sleep 8
+
+          if kill -0 "$PID" 2>/dev/null; then
+            echo "RESULT: still running after 8s (no immediate crash)"
+            kill "$PID" || true
+            EXIT_CODE=0
+          else
+            wait "$PID"
+            EXIT_CODE=$?
+            echo "RESULT: process exited early with code $EXIT_CODE"
+          fi
+
+          echo "----- launch.log -----"
+          cat launch.log || true
+          exit $EXIT_CODE
+
+      - name: Upload build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-build-and-log
+          path: |
+            dist/*.zip
+            launch.log
+          retention-days: 14

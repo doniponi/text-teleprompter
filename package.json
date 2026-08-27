@@ -5,7 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-builder --win portable"
+    "build:win": "electron-builder --win portable",
+    "build:mac": "electron-builder --mac zip"
   },
   "dependencies": {
     "mammoth": "^1.12.1",
@@ -40,6 +41,12 @@
     },
     "portable": {
       "artifactName": "文本提词器-${version}.exe"
+    },
+    "mac": {
+      "target": [
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
     }
   }
 }
