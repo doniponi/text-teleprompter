@@ -20,6 +20,7 @@
     "appId": "com.textteleprompter.app",
     "productName": "文本提词器",
     "asar": true,
+    "publish": null,
     "files": [
       "main.js",
       "preload.js",
