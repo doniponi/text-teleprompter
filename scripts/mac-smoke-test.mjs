@@ -102,6 +102,12 @@ results.appRegionDrag = await client.evalJs(
   'getComputedStyle(document.getElementById("titlebar")).getPropertyValue("-webkit-app-region")'
 );
 
+// 导入一段足够长的内容（保证有滚动空间），把语速调到最快缩短等待时间
+await client.evalJs(
+  `loadContent({ type: 'markdown', content: Array.from({length:200},(_, i)=>'第'+i+'行示例文字，用来确保内容足够长可以滚动。').join('\\n\\n'), filePath: 'smoke-test.md' }); charsPerMinute = 600; 'ok'`
+);
+results.scrollHeightAfterLoad = await client.evalJs("contentEl.scrollHeight");
+
 // 真实点击播放按钮，检查状态是否真的切换（跟本地测 Windows 版用的是同一手法）
 const rect = JSON.parse(await client.evalJs('JSON.stringify(document.getElementById("btn-play").getBoundingClientRect())'));
 const cx = rect.x + rect.width / 2;
@@ -111,6 +117,14 @@ await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: cx, y: 
 await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: cx, y: cy, button: "left", clickCount: 1 });
 await new Promise((r) => setTimeout(r, 300));
 results.playingAfterRealClick = await client.evalJs("playing");
+
+// 光是状态变成 true 不代表真的在滚动——之前在 Windows 上就出现过按钮状态正常切换、
+// 但 requestAnimationFrame 循环根本没跑起来、滚动条纹丝不动的情况。这里等足够久，
+// 实测 scrollTop 是否真的往前推进。
+results.scrollTopBefore = await client.evalJs("contentEl.scrollTop");
+await new Promise((r) => setTimeout(r, 2000));
+results.scrollTopAfter = await client.evalJs("contentEl.scrollTop");
+results.actuallyScrolled = results.scrollTopAfter > results.scrollTopBefore;
 
 // 截图存下来，直接看渲染效果（透明背景合成、字体、布局在 macOS 上到底长什么样）
 const shot = await client.send("Page.captureScreenshot", { format: "png" });
@@ -130,6 +144,7 @@ if (results.windowApiExists !== "object") problems.push("window.api missing — 
 if (results.markedExists !== "object" && results.markedExists !== "function") problems.push("marked not loaded");
 if (results.appRegionDrag !== "drag") problems.push("titlebar drag region not applied");
 if (results.playingAfterRealClick !== true) problems.push("play button click did not toggle playing state");
+if (!results.actuallyScrolled) problems.push("playing=true but scrollTop never advanced (animation not actually running)");
 if (!results.screenshotSaved) problems.push("screenshot capture failed");
 
 if (problems.length) {
