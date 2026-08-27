@@ -75,5 +75,8 @@ Global hotkeys — these work even when the window isn't focused, or while click
 | `Ctrl+Alt+H` | Show / hide the toolbar |
 | `Ctrl+Alt+O` | Open a file |
 | `Ctrl+Alt+R` | Restore the window if minimized |
+| `Ctrl+Alt+C` | Reset text color/opacity to defaults |
 
-If the toolbar is hidden or the window is minimized and you can't find your way back, use the system tray icon (under the taskbar's "show hidden icons" arrow — a terracotta square with a T and an upward arrow). The tray menu has play/pause, open file, reload current file, disable click-through, reset window position, show window, and quit.
+**Double right-click** anywhere in the text area also toggles the toolbar, no shortcut needed.
+
+If the toolbar is hidden or the window is minimized and you can't find your way back, use the system tray icon (under the taskbar's "show hidden icons" arrow — a terracotta square with a T and an upward arrow). The tray menu has play/pause, open file, reload current file, disable click-through, reset appearance, reset window position, show window, and quit.

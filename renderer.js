@@ -144,11 +144,31 @@ function setOpacity(percent) {
   contentEl.style.background = `rgba(${overlayIsLight ? '255,255,255' : '0,0,0'},${alpha})`;
 }
 
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
 async function autoDetectBackground() {
   btnAutocolor.disabled = true;
+  const prevBackground = contentEl.style.background;
   try {
-    const rgb = await window.api.detectBackground();
-    if (!rgb) return;
+    // 只改网页内容区自己的 CSS 背景（纯前端操作，原生窗口全程保持正常显示/可交互），
+    // 露出背后画面后再截屏取色，避免碰任何原生窗口显隐/透明度 API。
+    contentEl.style.background = 'transparent';
+    await nextFrame();
+
+    const domRect = contentEl.getBoundingClientRect();
+    const screenRect = {
+      x: Math.round(window.screenX + domRect.left),
+      y: Math.round(window.screenY + domRect.top),
+      width: Math.round(domRect.width),
+      height: Math.round(domRect.height),
+    };
+    const rgb = await window.api.detectBackground(screenRect);
+    if (!rgb) {
+      contentEl.style.background = prevBackground;
+      return;
+    }
     const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
     overlayIsLight = luminance > 0.55;
     const textColor = overlayIsLight ? '#1a1a1a' : '#ffffff';
@@ -222,6 +242,21 @@ document.addEventListener('mousemove', (e) => {
   if (shouldIgnore !== osIgnoring) {
     osIgnoring = shouldIgnore;
     window.api.setClickThrough(shouldIgnore);
+  }
+});
+
+// 工具栏隐藏之后，想暂停/调设置只能靠快捷键或托盘，太绕。加一个双击右键
+// 随时切换工具栏显示/隐藏；顺便把默认的右键菜单也禁掉，免得在这个置顶悬浮窗上
+// 冒出一个不合时宜的浏览器右键菜单。
+let lastRightClickTime = 0;
+document.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  const now = Date.now();
+  if (now - lastRightClickTime < 400) {
+    appEl.classList.toggle('controls-hidden');
+    lastRightClickTime = 0;
+  } else {
+    lastRightClickTime = now;
   }
 });
 

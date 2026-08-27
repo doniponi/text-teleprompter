@@ -177,6 +177,7 @@ ipcMain.handle('open-file-dialog', async () => {
     });
   } finally {
     win.setAlwaysOnTop(true, 'screen-saver');
+    win.setIgnoreMouseEvents(false);
   }
   if (result.canceled || result.filePaths.length === 0) return null;
   return loadFileByPath(result.filePaths[0]);
@@ -202,51 +203,53 @@ ipcMain.on('minimize-app', () => {
   win.minimize();
 });
 
-// 一键识别窗口背后的真实背景色：先隐藏窗口露出背后的画面，截屏采样窗口所在区域，
-// 算出平均颜色，再把窗口显示回来。用来判断该用深色字还是白色字。
-ipcMain.handle('detect-background', async () => {
-  const wasVisible = win.isVisible();
-  win.hide();
-  try {
-    await new Promise((resolve) => setTimeout(resolve, 120));
+// 一键识别窗口背后的真实背景色：截屏采样指定屏幕区域，算出平均颜色，
+// 用来判断该用深色字还是白色字。
+//
+// 这里刻意不碰原生窗口的任何状态（不 hide/show，也不 setOpacity）——之前试过
+// win.hide()/win.show() 和 win.setOpacity(0/1) 两种方式让窗口在截屏时"隐身"，
+// 都在"不可获得焦点(focusable:false) + 透明 + 最高档置顶"这种非常规窗口组合上
+// 出过问题：窗口恢复后完全收不到鼠标输入（点击、拖动都没反应，但主进程发来的
+// IPC 消息仍能正常处理——说明不是渲染进程挂了，是原生窗口的输入状态没跟着恢复），
+// 而且这个问题在不同机器上复现条件还不一样，两次"修复"都只是换了个方式踩坑。
+// 干脆不摸原生窗口状态：让渲染进程自己把内容区背景临时改成 CSS 透明（纯网页层面
+// 的操作，原生窗口全程保持真正意义上的"正常显示、可交互"），只把要采样的屏幕区域
+// （由渲染进程按内容区在屏幕上的实际位置算好传过来）截出来取平均色。
+ipcMain.handle('detect-background', async (event, rect) => {
+  if (!rect || !rect.width || !rect.height) return null;
+  const display = screen.getDisplayMatching(rect);
+  const scaleFactor = display.scaleFactor || 1;
 
-    const bounds = win.getBounds();
-    const display = screen.getDisplayMatching(bounds);
-    const scaleFactor = display.scaleFactor || 1;
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: {
+      width: Math.round(display.size.width * scaleFactor),
+      height: Math.round(display.size.height * scaleFactor),
+    },
+  });
+  if (!sources.length) return null;
+  const source = sources.find((s) => String(s.display_id) === String(display.id)) || sources[0];
+  const img = source.thumbnail;
+  if (img.isEmpty()) return null;
 
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: {
-        width: Math.round(display.size.width * scaleFactor),
-        height: Math.round(display.size.height * scaleFactor),
-      },
-    });
-    if (!sources.length) return null;
-    const source = sources.find((s) => String(s.display_id) === String(display.id)) || sources[0];
-    const img = source.thumbnail;
-    if (img.isEmpty()) return null;
+  const imgSize = img.getSize();
+  const relX = Math.round((rect.x - display.bounds.x) * scaleFactor);
+  const relY = Math.round((rect.y - display.bounds.y) * scaleFactor);
+  const w = Math.round(rect.width * scaleFactor);
+  const h = Math.round(rect.height * scaleFactor);
 
-    const imgSize = img.getSize();
-    const relX = Math.round((bounds.x - display.bounds.x) * scaleFactor);
-    const relY = Math.round((bounds.y - display.bounds.y) * scaleFactor);
-    const w = Math.round(bounds.width * scaleFactor);
-    const h = Math.round(bounds.height * scaleFactor);
+  const x = Math.max(0, Math.min(relX, imgSize.width - 1));
+  const y = Math.max(0, Math.min(relY, imgSize.height - 1));
+  const cropRect = {
+    x,
+    y,
+    width: Math.max(1, Math.min(w, imgSize.width - x)),
+    height: Math.max(1, Math.min(h, imgSize.height - y)),
+  };
 
-    const x = Math.max(0, Math.min(relX, imgSize.width - 1));
-    const y = Math.max(0, Math.min(relY, imgSize.height - 1));
-    const cropRect = {
-      x,
-      y,
-      width: Math.max(1, Math.min(w, imgSize.width - x)),
-      height: Math.max(1, Math.min(h, imgSize.height - y)),
-    };
-
-    const cropped = img.crop(cropRect);
-    const tiny = cropped.resize({ width: 1, height: 1, quality: 'good' });
-    const bitmap = tiny.toBitmap(); // BGRA
-    if (bitmap.length < 3) return null;
-    return { r: bitmap[2], g: bitmap[1], b: bitmap[0] };
-  } finally {
-    if (wasVisible) win.show();
-  }
+  const cropped = img.crop(cropRect);
+  const tiny = cropped.resize({ width: 1, height: 1, quality: 'good' });
+  const bitmap = tiny.toBitmap(); // BGRA
+  if (bitmap.length < 3) return null;
+  return { r: bitmap[2], g: bitmap[1], b: bitmap[0] };
 });

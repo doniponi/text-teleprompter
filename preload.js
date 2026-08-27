@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   setClickThrough: (ignore) => ipcRenderer.send('set-click-through', ignore),
   closeApp: () => ipcRenderer.send('close-app'),
   minimizeApp: () => ipcRenderer.send('minimize-app'),
-  detectBackground: () => ipcRenderer.invoke('detect-background'),
+  detectBackground: (rect) => ipcRenderer.invoke('detect-background', rect),
   onLoadFile: (cb) => ipcRenderer.on('load-file', (e, data) => cb(data)),
   onToggleClickThrough: (cb) => ipcRenderer.on('toggle-click-through', (e, forceValue) => cb(forceValue)),
   onTogglePlay: (cb) => ipcRenderer.on('toggle-play', cb),
