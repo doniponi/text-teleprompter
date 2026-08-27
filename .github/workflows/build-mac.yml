@@ -18,6 +18,10 @@ on:
 jobs:
   build-mac:
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x64]
     steps:
       - uses: actions/checkout@v4
 
@@ -28,10 +32,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build macOS app
-        run: npm run build:mac
+      - name: Build macOS app (${{ matrix.arch }})
+        run: npx electron-builder --mac zip --${{ matrix.arch }} --publish never
 
       - name: Interactive smoke test (click, state, screenshot via CDP)
+        # x64 只能在 arm64 跑手上靠 Rosetta 转译执行，如果这台 runner 没装 Rosetta
+        # 这步会失败——不影响构建产物本身，失败了就把这步标成不阻断整体结果。
+        continue-on-error: ${{ matrix.arch == 'x64' }}
         run: |
           set -x
           APP_PATH=$(find dist/mac* -maxdepth 1 -name "*.app" | head -n 1)
@@ -48,7 +55,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mac-build-and-log
+          name: mac-build-${{ matrix.arch }}
           path: |
             dist/*.zip
             mac-screenshot.png
